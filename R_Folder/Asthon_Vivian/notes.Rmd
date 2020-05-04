@@ -1,0 +1,106 @@
+---
+title: "Shunt Graphics"
+output: html_document
+---
+
+```{r Libraries and data, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(plotly)
+
+datalog <- read_csv("../../data/DATALOG_FLIGHT (1).TXT")
+
+```
+
+```{r Wrangling data, message=FALSE, warning=F}
+
+dat <- datalog %>%
+  select(`Sample Number`, `Nanolab elapsed time (ms)`, `NR exptime (s)`, `X Acceleration (G)`, `Y Acceleration (G)`, `Z Acceleration (G)`, `Flight Altitude (ft)`, `Flight State`) %>% 
+  map(., as.numeric)
+
+dat <- as.data.frame(dat)
+
+#colnames(dat)
+
+dat <- dat %>% 
+  mutate(total_gs = (abs(X.Acceleration..G.) + abs(Y.Acceleration..G.) + abs(Z.Acceleration..G.)))
+
+```
+
+
+### Questions
+
+* how often is a sample being taken?
+
+* why is some of the NR expected times negative?
+
+* We want a graph that is Flow_rate vs G's, right?
+
+
+* Is launch site and landing at 0 ft for the flight Altitude?
+
+* Why are the sample numbers all janky? there are some sample numbers that occur multiple times but has different values for the other columns, but this doesn't happen for all of the sample numbers, what's up with that??
+
+* Is the text file comprised of multiple launches or sensors? (in reference to the question above)
+
+
+```{r SN vs FA, warning=FALSE}
+dat %>% 
+  #filter(Flight.Altitude..ft. > 0) %>% 
+  #filter(Sample.Number > 1000) %>% 
+  ggplot(aes(x = `Sample.Number`, y = `Flight.Altitude..ft.`, color = total_gs)) +
+  geom_point() +
+  theme_bw()
+```
+
+
+```{r Gs VS FA, warning=FALSE}
+dat %>% 
+  #filter(Flight.Altitude..ft. > 0) %>% 
+  ggplot(aes(x = Flight.Altitude..ft., y = total_gs, color = Sample.Number)) +
+  geom_point() +
+  theme_bw()
+```
+
+What? Lets look at depth.
+
+
+```{r 3D plot, warning=FALSE}
+
+fig <- plot_ly(dat, 
+               x = ~Sample.Number, 
+               y = ~Flight.Altitude..ft., 
+               z = ~total_gs, 
+               color = ~Sample.Number) %>% 
+  add_markers() %>% 
+  layout(scene = list(xaxis = list(title = "Sample Number"),
+                      yaxis = list(tilte = "Altitude"),
+                      zaxis = list(title = "Total G's")))
+
+fig
+```
+
+
+
+
+```{r 2nd 3D plot, warning=FALSE}
+fig <- plot_ly(dat, 
+               x = ~X.Acceleration..G., 
+               y = ~Y.Acceleration..G., 
+               z = ~Z.Acceleration..G., 
+               color = ~total_gs) %>% 
+  add_markers() %>% 
+  layout(scene = list(xaxis = list(title = "X"),
+                      yaxis = list(tilte = "Y"),
+                      zaxis = list(title = "Z")))
+
+fig
+```
+
+
+
+
+
+
+
+
