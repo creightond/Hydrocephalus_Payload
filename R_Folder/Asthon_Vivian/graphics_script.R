@@ -47,7 +47,9 @@ dat <- dat %>%
 dat %>% 
   ggplot(aes(x = `Sample.Number`, y = `Flight.Altitude..ft.`, color = total_gs)) +
   geom_point() +
-  theme_bw()
+  theme_bw() + 
+  labs(x = "Sample Number", y = "Flight Altitude (ft)", title = "The Flight pattern for Altitude and G's dependte of Sample number") + 
+  scale_color_continuous("Total G's")
 
 ## elapsed time vs Flight Alt --  is the same
 dat %>% 
