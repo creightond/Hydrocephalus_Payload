@@ -1,0 +1,224 @@
+---
+title: "VP Shunt Temp"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:  
+    keep_md: true
+    code_folding: hide
+    fig_height: 6
+    fig_width: 12
+    fig_align: 'center'
+---
+
+
+
+```{r load_libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(plot3D)
+library(plotly)
+
+#### Reading in the data
+datalog <- read_csv("../../data/DATALOG_FLIGHT (1).TXT") 
+```
+
+
+```{r tidy_data, warning = FALSE}
+#### Wrangling 
+dat <- datalog %>%
+  select(`Sample Number`, `Nanolab elapsed time (ms)`, `NR exptime (s)`, `X Acceleration (G)`, `Y Acceleration (G)`, `Z Acceleration (G)`, `Flight Altitude (ft)`, `Flight State`) %>% 
+  map(., as.numeric)
+
+dat <- as.data.frame(dat)
+
+dat <- dat %>% 
+  mutate(total_gs = (abs(X.Acceleration..G.) + abs(Y.Acceleration..G.) + abs(Z.Acceleration..G.)))
+```
+
+## Questions
+
+```{r Alt_vs_SampNum}
+dat %>% 
+  ggplot(aes(x = `Sample.Number`, y = `Flight.Altitude..ft.`, color = total_gs)) +
+  geom_point() +
+  theme_bw() + 
+  labs(x = "Sample Number", y = "Flight Altitude (ft)", title = "The Flight pattern for Altitude and G's dependent of Sample Number") + 
+  scale_color_continuous("Total G's")
+
+```
+
+It looks like there are repeat sample numbers. **Were there several counters per payload? Or does this data set have data for several launches?** It looks like we start to lose G's at  170,000 ft. Why are we using sample number when we have time?
+
+```{r Alt_vs_TimeElap}
+dat %>% 
+  ggplot(aes(x = Nanolab.elapsed.time..ms., y = `Flight.Altitude..ft.`, color = total_gs)) +
+  geom_point() +
+  theme_bw() + 
+  labs(x = "Nanolab Elapsed Time (ms)", y = "Flight Altitude (ft)", title = "The Flight pattern for Altitude and G's dependent of Time") + 
+  scale_color_continuous("Total G's")
+```
+
+We get the same graph as the sample number, is there a benefit to using on over the other? **What's the difference between** `Nanolab.elapsed.time..ms.` **and** `NR exptime (s)`?  The two variables get drastically different graphs.
+
+```{r Alt_vs_TimeExp}
+dat %>% 
+  ggplot(aes(x = NR.exptime..s., y = `Flight.Altitude..ft.`, color = total_gs)) +
+  geom_point() +
+  theme_bw()
+```
+
+From the graph above it looks like our graph is split into three different sets of data? **This goes be to my other question of why are there repeating sample numbers?** But this is temp data so maybe this doesn't matter.
+
+
+```{r}
+dat %>% 
+  filter(Flight.Altitude..ft. > 0) %>% 
+  ggplot(aes(x = Flight.Altitude..ft., y = total_gs, color = Sample.Number)) +
+  geom_point() +
+  theme_bw()
+```
+
+This graph just show's where the G's drop off and come back in at. I don't think it's very important. It might be better if we could color by flow rate or something like that. It might be interesting to look at at this with more depth maybe we should look at in 3D? It could be fun...
+
+```{r}
+fig <- plot_ly(dat, 
+               x = ~Nanolab.elapsed.time..ms., 
+               y = ~Flight.Altitude..ft., 
+               z = ~total_gs, 
+               color = ~total_gs) %>% 
+  add_markers() %>% 
+  layout(scene = list(xaxis = list(title = "Nano Lab Elapsed Time (ms)"),
+                      yaxis = list(tilte = "Altitude"),
+                      zaxis = list(title = "Total G's")))
+
+fig
+```
+
+### Different Samples? 
+
+The following plots were here to help me decipher what's going on with the `Sample.Number`.
+
+```{r}
+dat %>% 
+  ggplot(aes(x = Nanolab.elapsed.time..ms., y = Sample.Number)) +
+  geom_point()
+
+```
+
+This plot show that Sample number and Elapsed time have a direct correlation (we saw this before in the graph above) but it also shows that there are at least two samples.
+
+```{r}
+dat %>% 
+  ggplot(aes(x = NR.exptime..s., y = Sample.Number)) +
+  geom_point()
+
+dat %>% 
+  ggplot(aes(y = NR.exptime..s., x = Sample.Number)) +
+  geom_point()
+```
+
+This just doesn't make sense...  There seems to be a parabolic curve between sample number and expected time. `¯\_(ツ)_/¯` so both expected time and sample number are repeated? We would see the same thing if we use elapsef time instead of sample number. Let's split the data a little.
+
+
+```{r}
+datalog <- dat %>% 
+  mutate(n = 1:31210)
+## new set starts at 173 and 5000 with tile headers
+datalog1 <- datalog[1:172,]
+datalog2 <- datalog[174:4999,]
+datalog3 <- datalog[5001:31210,]
+
+```
+
+**Random question, What's `Flight.State'
+
+```{r}
+
+datalog1 %>% 
+  ggplot(aes(x = `Sample.Number`, y = `Flight.Altitude..ft.`, color = Flight.State)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Data log 1")
+
+```
+
+This is the datalog one, the 1st 172 rows in the data set. The sample number didn't extend past that point it restarted. Somthing to note is that the Flight State for this group are all marked NA.
+
+
+```{r}
+datalog2 %>% 
+  ggplot(aes(x = `Sample.Number`, y = `Flight.Altitude..ft.`, color = (Flight.State))) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Data log 2")
+```
+
+This is the datalog 2, rows 174-4999. The sample number didn't extend past that point it restarted. Somthing to note is that the Flight State for this group are all marked NA.
+
+```{r}
+
+datalog3 %>% 
+  ggplot(aes(x = `Sample.Number`, y = `Flight.Altitude..ft.`, color = as.factor(Flight.State))) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Data log 3")
+
+```
+
+Data log 3 looks like the original? WHY?!?!
+
+```{r}
+datalog1 %>% 
+  ggplot(aes(x = NR.exptime..s., y = `Flight.Altitude..ft.`, color = Flight.State)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Data log 1")
+
+datalog2 %>% 
+  ggplot(aes(x = NR.exptime..s., y = `Flight.Altitude..ft.`, color = Flight.State)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Data log 2")
+
+
+datalog3 %>% 
+  ggplot(aes(x = NR.exptime..s., y = `Flight.Altitude..ft.`, color = as.factor(Flight.State))) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Data log 3")
+
+```
+
+:(
+
+```{r}
+fig <- plot_ly(dat, 
+               x = ~Nanolab.elapsed.time..ms., 
+               y = ~Flight.Altitude..ft., 
+               z = ~total_gs, 
+               color = ~as.factor(Flight.State)) %>% 
+  add_markers() %>% 
+  layout(scene = list(xaxis = list(title = "Nano Lab Elapsed Time (ms)"),
+                      yaxis = list(tilte = "Altitude"),
+                      zaxis = list(title = "Total G's")))
+
+fig
+```
+
+
+
+```{r}
+fig <- plot_ly(datalog3, 
+               x = ~Nanolab.elapsed.time..ms., 
+               y = ~Flight.Altitude..ft., 
+               z = ~total_gs, 
+               color = ~as.factor(Flight.State)) %>% 
+  add_markers() %>% 
+  layout(scene = list(xaxis = list(title = "Nano Lab Elapsed Time (ms)"),
+                      yaxis = list(tilte = "Altitude"),
+                      zaxis = list(title = "Total G's")))
+
+fig
+```
+
+
+
