@@ -9,6 +9,9 @@ dat <- map(dat, as.numeric)
 
 dat <- data.frame(dat)
 
+dat <- dat %>% 
+  rowid_to_column()
+
 # dat <- dat %>% 
 #   filter(Flight.Altitude..ft. > 0,
 #          NR.exptime..s. > 0)
@@ -63,6 +66,44 @@ p1 <- dat %>%
   scale_color_manual(values = "black") +
   labs(x = "Time (s)", y = "Altitude (ft)", color = "Shunt Flow") +
   theme_minimal()
+
+
+
+p2 <- dat %>% 
+  filter(rowid > 4500,
+         rowid <  21000,
+         Flight.Altitude..ft. > 60
+         #Flight.Altitude..ft. > 5000 --- This looks pretty good in cleaning misreads... I'm sure there is a good way to tell if something is misreading...
+  ) %>% 
+  select(Sample.Number , Flight.Altitude..ft.) %>% 
+  distinct() %>% 
+  ggplot() +
+  geom_point(aes(x = order(Sample.Number), y = Flight.Altitude..ft., color = "Gradient of Shunt Flow")) +
+  scale_color_manual(values = "black") +
+  labs(x = "Time (s)", y = "Altitude (ft)", color = "Shunt Flow") +
+  theme_minimal()
+
+p1
+p2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
